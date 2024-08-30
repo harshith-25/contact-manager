@@ -2,7 +2,8 @@ const asyncHandler = require("express-async-handler");
 const Contact = require("../models/contactModel")
 
 const getContacts = asyncHandler(async(res, req) => {
-	res.status(200).json({message: "Get all contacts"});
+	const contacts = await Contact.find({ user_id: req.user.id });
+	res.status(200).json(contacts);
 });
 
 const createContact = asyncHandler(async (res, req) => {
@@ -14,7 +15,7 @@ const createContact = asyncHandler(async (res, req) => {
 		throw new Error("All fields are mandatory");
 	}
 	const contact = await Contact.create({
-		name, email, phone
+		name, email, phone, user_id: req.user.id
 	});
 
 	res.status(200).json(contact);
@@ -35,6 +36,11 @@ const updateContact = asyncHandler(async (res, req) => {
 		res.status(404);
 		throw new Error("Contact not found");
 	}
+
+	if (contact.user_id.toString() !== req.user.id) {
+		res.status(403)
+		throw new Error("User dont have permission to update other user contact");
+	}
 	const updatedContact = await Contact.findByIdAndUpdate(
 		req.params.id,
 		req.body,
@@ -49,7 +55,11 @@ const deleteContact = asyncHandler(async (res, req) => {
 		res.status(404);
 		throw new Error("Contact not found");
 	}
-	await Contact.remove();
+	if (contact.user_id.toString() !== req.user.id) {
+		res.status(403)
+		throw new Error("User dont have permission to update other user contact");
+	}
+	await Contact.deleteOne({_id: req.params.id});
 	res.status(200).json(contact);
 });
 
